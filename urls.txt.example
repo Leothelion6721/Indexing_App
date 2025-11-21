@@ -1,0 +1,9 @@
+# Example URLs file
+# Add one URL per line
+# Lines starting with # are treated as comments and ignored
+
+https://example.com
+https://www.python.org
+https://github.com
+
+# You can add more URLs below:
