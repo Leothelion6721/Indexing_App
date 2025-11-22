@@ -29,14 +29,41 @@ class SiteIndexer:
         self.max_retries = max_retries
         self.delay = delay
         self.session = requests.Session()
+
+        # List of User-Agent strings to rotate through (helps avoid bot detection)
+        self.user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+        ]
+
+        self._update_headers()
+
+    def _update_headers(self, user_agent_index: int = 0):
+        """
+        Update session headers with more browser-like headers
+
+        Args:
+            user_agent_index: Index of user agent to use from the list
+        """
+        user_agent = self.user_agents[user_agent_index % len(self.user_agents)]
+
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'User-Agent': user_agent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
+            'Cache-Control': 'max-age=0',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1',
+            'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"'
         })
 
     def fetch_page(self, url: str) -> tuple:
@@ -59,6 +86,9 @@ class SiteIndexer:
                     backoff_time = 2 ** attempt
                     time.sleep(backoff_time)
 
+                    # On retry, try a different User-Agent to bypass bot detection
+                    self._update_headers(attempt)
+
                 response = self.session.get(url, timeout=self.timeout, allow_redirects=True)
                 response.raise_for_status()
                 return response.text, response.status_code
@@ -72,12 +102,21 @@ class SiteIndexer:
                 continue
 
             except requests.exceptions.HTTPError as e:
-                # Don't retry on client errors (4xx), only server errors (5xx)
-                if response.status_code >= 500:
+                # Special handling for 403 Forbidden - might be bot detection
+                if response.status_code == 403:
+                    if attempt < self.max_retries - 1:
+                        last_error = f"HTTP 403 Forbidden (attempt {attempt + 1}/{self.max_retries}), trying different User-Agent"
+                        # Try again with different User-Agent
+                        continue
+                    else:
+                        last_error = f"HTTP 403: Forbidden (bot detection)"
+                        break
+                # Retry on server errors (5xx)
+                elif response.status_code >= 500:
                     last_error = f"Server error {response.status_code} (attempt {attempt + 1}/{self.max_retries})"
                     continue
                 else:
-                    # Client errors like 403, 404 - don't retry
+                    # Other client errors like 404 - don't retry
                     last_error = f"HTTP {response.status_code}: {e}"
                     break
 
@@ -203,6 +242,9 @@ class SiteIndexer:
         Returns:
             Dictionary with indexed data
         """
+        # Reset headers to default for each new URL
+        self._update_headers(0)
+
         content, status = self.fetch_page(url)
 
         if content is None:
