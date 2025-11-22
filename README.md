@@ -8,6 +8,7 @@ A Python application that indexes websites and generates structured JSON output 
 - Extract page title, description, content, and all links
 - Output JSON in a structured format
 - Support for both command-line arguments and URL files
+- Real-time progress bar when indexing multiple sites
 - Automatic handling of relative URLs
 - Timestamps for indexed pages
 - Error handling and retry logic
@@ -172,6 +173,7 @@ The application includes robust error handling:
 - requests >= 2.31.0
 - beautifulsoup4 >= 4.12.0
 - lxml >= 4.9.0
+- tqdm >= 4.66.0
 
 ## Limitations
 
