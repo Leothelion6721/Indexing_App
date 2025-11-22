@@ -13,7 +13,13 @@ A Python application that indexes websites and generates structured JSON output 
   - Exponential backoff retry for failed requests
   - Configurable retry attempts (default: 3)
   - Smart retry: only retries timeouts, connection errors, and server errors (5xx)
-  - Skips retry on client errors (4xx) to save time
+  - Special handling for 403 errors with User-Agent rotation
+  - Skips retry on other client errors (404, etc.) to save time
+- **Advanced bot detection bypass**
+  - Automatically rotates through 5 different realistic User-Agent strings
+  - Mimics real browser behavior with comprehensive headers
+  - Includes Chrome-specific headers (sec-ch-ua, Sec-Fetch-*, etc.)
+  - Significantly improves success rate for sites with bot protection
 - **Rate limiting protection**
   - Configurable delay between requests (default: 0.5s)
   - Prevents triggering anti-bot measures
@@ -193,6 +199,10 @@ The application includes robust error handling:
 - Failed requests are logged but don't stop the entire process
 - Network errors are caught and reported
 - Invalid file paths are handled gracefully
+- **403 Forbidden errors**: Automatically retries with different User-Agent strings
+- **Server errors (5xx)**: Retries with exponential backoff
+- **Timeouts and connection errors**: Automatic retry with backoff
+- **Other client errors (404, etc.)**: Skipped to save time
 
 ## Requirements
 
