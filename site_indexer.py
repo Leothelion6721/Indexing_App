@@ -9,6 +9,7 @@ from typing import List, Dict
 from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 
 
 class SiteIndexer:
@@ -48,7 +49,7 @@ class SiteIndexer:
             response.raise_for_status()
             return response.text, response.status_code
         except requests.RequestException as e:
-            print(f"Error fetching {url}: {e}", file=sys.stderr)
+            tqdm.write(f"Error fetching {url}: {e}", file=sys.stderr)
             return None, -1
 
     def extract_links(self, soup: BeautifulSoup, base_url: str) -> List[str]:
@@ -159,12 +160,10 @@ class SiteIndexer:
         Returns:
             Dictionary with indexed data
         """
-        print(f"Indexing: {url}")
-
         content, status = self.fetch_page(url)
 
         if content is None:
-            print(f"Failed to fetch {url}", file=sys.stderr)
+            tqdm.write(f"Failed to fetch {url}", file=sys.stderr)
             return None
 
         soup = BeautifulSoup(content, 'html.parser')
@@ -200,7 +199,8 @@ class SiteIndexer:
         """
         pages = []
 
-        for url in urls:
+        # Use tqdm for progress bar
+        for url in tqdm(urls, desc="Indexing sites", unit="site"):
             page_data = self.index_url(url)
             if page_data:
                 pages.append(page_data)
@@ -311,15 +311,13 @@ Examples:
         sys.exit(1)
 
     # Index sites
-    print(f"Starting indexing of {len(valid_urls)} site(s)...\n")
-
     indexer = SiteIndexer(timeout=args.timeout)
     data = indexer.index_sites(valid_urls)
 
     # Save results
     output_file = indexer.save_to_json(data, args.output)
 
-    print(f"\nIndexed {len(data['Pages'])} page(s) successfully")
+    print(f"\nSuccessfully indexed {len(data['Pages'])} of {len(valid_urls)} site(s)")
 
 
 if __name__ == '__main__':
