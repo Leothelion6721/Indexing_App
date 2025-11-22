@@ -14,6 +14,7 @@ A Python application that indexes websites and generates structured JSON output 
   - Configurable retry attempts (default: 3)
   - Smart retry: only retries timeouts, connection errors, and server errors (5xx)
   - Special handling for 403 errors with User-Agent rotation
+  - Special handling for 429 errors with extended delays (rate limiting)
   - Skips retry on other client errors (404, etc.) to save time
 - **Advanced bot detection bypass**
   - Automatically rotates through 5 different realistic User-Agent strings
@@ -200,6 +201,7 @@ The application includes robust error handling:
 - Network errors are caught and reported
 - Invalid file paths are handled gracefully
 - **403 Forbidden errors**: Automatically retries with different User-Agent strings
+- **429 Too Many Requests**: Retries with extended delays (3s, 6s, 12s) to respect rate limits
 - **Server errors (5xx)**: Retries with exponential backoff
 - **Timeouts and connection errors**: Automatic retry with backoff
 - **Other client errors (404, etc.)**: Skipped to save time
@@ -225,7 +227,8 @@ The application includes robust error handling:
 3. **Avoid rate limiting**: Use `-d 1.0` or higher to add delays between requests
 4. **Large batches**: Combine `-t 60 -r 5 -d 1.0` for maximum robustness when indexing many sites
 5. **Memory usage**: Very large pages or many pages at once may use significant memory
-6. **Server errors vs client errors**: The tool automatically retries server errors (5xx) but not client errors (4xx) to save time
+6. **Server errors vs client errors**: The tool automatically retries server errors (5xx) and special client errors (403, 429), but not other client errors (404, etc.) to save time
+7. **Rate limiting (429 errors)**: The tool automatically handles rate limiting with extended delays, but if you frequently hit 429 errors, increase the `-d` delay parameter
 
 ## License
 
