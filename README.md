@@ -9,9 +9,17 @@ A Python application that indexes websites and generates structured JSON output 
 - Output JSON in a structured format
 - Support for both command-line arguments and URL files
 - Real-time progress bar when indexing multiple sites
+- **Robust error handling with automatic retry logic**
+  - Exponential backoff retry for failed requests
+  - Configurable retry attempts (default: 3)
+  - Smart retry: only retries timeouts, connection errors, and server errors (5xx)
+  - Skips retry on client errors (4xx) to save time
+- **Rate limiting protection**
+  - Configurable delay between requests (default: 0.5s)
+  - Prevents triggering anti-bot measures
 - Automatic handling of relative URLs
 - Timestamps for indexed pages
-- Error handling and retry logic
+- Comprehensive error reporting
 
 ## Installation
 
@@ -57,6 +65,21 @@ Set custom timeout (in seconds):
 python site_indexer.py -t 60 https://example.com
 ```
 
+Increase retry attempts for unreliable sites:
+```bash
+python site_indexer.py -r 5 -f urls.txt
+```
+
+Add delay between requests to avoid rate limiting:
+```bash
+python site_indexer.py -d 1.0 -f urls.txt
+```
+
+Combine options for maximum robustness:
+```bash
+python site_indexer.py -t 60 -r 5 -d 1.0 -f urls.txt
+```
+
 ### Using a URL File
 
 Create a text file (e.g., `urls.txt`) with one URL per line:
@@ -85,6 +108,10 @@ optional arguments:
                         Output filename (default: indexed_sites_TIMESTAMP.json)
   -t TIMEOUT, --timeout TIMEOUT
                         Request timeout in seconds (default: 30)
+  -r RETRIES, --retries RETRIES
+                        Maximum number of retry attempts for failed requests (default: 3)
+  -d DELAY, --delay DELAY
+                        Delay in seconds between requests to avoid rate limiting (default: 0.5)
 ```
 
 ## Output Format
@@ -179,15 +206,16 @@ The application includes robust error handling:
 
 - Only indexes the HTML content of pages (no JavaScript rendering)
 - Large pages may take time to process
-- Some sites may block automated requests (respect robots.txt)
-- Rate limiting is not built-in (add delays between requests if needed)
+- Some sites may block automated requests despite retries (respect robots.txt)
 
 ## Tips
 
 1. **Respect robots.txt**: Always check if a site allows crawling
-2. **Rate limiting**: Consider adding delays between requests for multiple pages
-3. **Large batches**: For indexing many sites, run in batches to avoid timeouts
-4. **Memory usage**: Very large pages or many pages at once may use significant memory
+2. **For unreliable sites**: Use `-r 5` or higher to increase retry attempts
+3. **Avoid rate limiting**: Use `-d 1.0` or higher to add delays between requests
+4. **Large batches**: Combine `-t 60 -r 5 -d 1.0` for maximum robustness when indexing many sites
+5. **Memory usage**: Very large pages or many pages at once may use significant memory
+6. **Server errors vs client errors**: The tool automatically retries server errors (5xx) but not client errors (4xx) to save time
 
 ## License
 
