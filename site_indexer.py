@@ -110,6 +110,10 @@ class SiteIndexer:
             user_agent_index: Index of user agent to use from the list
             url: The URL being requested (for Referer header)
         """
+        # Skip header updates in browser mode - Selenium handles headers automatically
+        if self.use_browser:
+            return
+
         user_agent = self.user_agents[user_agent_index % len(self.user_agents)]
 
         # Randomly choose a search engine referer to make it look organic
