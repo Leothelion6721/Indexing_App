@@ -280,8 +280,14 @@ Examples:
     if args.file:
         try:
             with open(args.file, 'r') as f:
-                file_urls = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-                urls.extend(file_urls)
+                for line in f:
+                    line = line.strip()
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+                    # Split by whitespace to handle multiple URLs per line
+                    line_urls = line.split()
+                    urls.extend(line_urls)
         except FileNotFoundError:
             print(f"Error: File '{args.file}' not found", file=sys.stderr)
             sys.exit(1)
