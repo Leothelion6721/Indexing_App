@@ -7,17 +7,28 @@ import sys
 import time
 import random
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
+# Optional Selenium imports (only needed if using browser mode)
+try:
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    SELENIUM_AVAILABLE = True
+except ImportError:
+    SELENIUM_AVAILABLE = False
+    uc = None
+
 
 class SiteIndexer:
     """Main class for indexing websites"""
 
-    def __init__(self, timeout: int = 30, max_retries: int = 3, delay: float = 0.5):
+    def __init__(self, timeout: int = 30, max_retries: int = 3, delay: float = 0.5, use_browser: bool = False):
         """
         Initialize the site indexer
 
@@ -25,14 +36,22 @@ class SiteIndexer:
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts for failed requests
             delay: Delay in seconds between requests (to avoid rate limiting)
+            use_browser: If True, use Selenium with undetected Chrome (slower but bypasses all bot detection)
         """
         self.timeout = timeout
         self.max_retries = max_retries
         self.delay = delay
-        self.session = requests.Session()
+        self.use_browser = use_browser
+        self.driver: Optional[uc.Chrome] = None
 
-        # Enable cookie handling
-        self.session.cookies.set_policy = True
+        if use_browser:
+            if not SELENIUM_AVAILABLE:
+                raise ImportError("Selenium and undetected-chromedriver are required for browser mode. Install with: pip install selenium undetected-chromedriver")
+            self._init_browser()
+        else:
+            self.session = requests.Session()
+            # Enable cookie handling
+            self.session.cookies.set_policy = True
 
         # Expanded list of User-Agent strings including mobile
         self.user_agents = [
@@ -60,7 +79,28 @@ class SiteIndexer:
             'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1'
         ]
 
-        self._update_headers()
+        if not use_browser:
+            self._update_headers()
+
+    def _init_browser(self):
+        """Initialize undetected Chrome browser"""
+        options = uc.ChromeOptions()
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        # Run headless for faster performance (optional)
+        # options.add_argument('--headless=new')
+
+        self.driver = uc.Chrome(options=options, use_subprocess=True)
+        self.driver.set_page_load_timeout(self.timeout)
+
+    def __del__(self):
+        """Cleanup browser on object destruction"""
+        if self.driver:
+            try:
+                self.driver.quit()
+            except:
+                pass
 
     def _update_headers(self, user_agent_index: int = 0, url: str = None):
         """
@@ -129,6 +169,31 @@ class SiteIndexer:
         self.session.headers.clear()
         self.session.headers.update(headers)
 
+    def _fetch_page_browser(self, url: str) -> tuple:
+        """
+        Fetch a webpage using Selenium browser
+
+        Args:
+            url: The URL to fetch
+
+        Returns:
+            tuple: (content, status_code) or (None, error_code)
+        """
+        try:
+            self.driver.get(url)
+            # Wait for body to load
+            WebDriverWait(self.driver, self.timeout).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            # Small delay to ensure page is fully loaded
+            time.sleep(random.uniform(1, 2))
+
+            content = self.driver.page_source
+            return content, 200
+        except Exception as e:
+            tqdm.write(f"Browser error fetching {url}: {str(e)}", file=sys.stderr)
+            return None, -1
+
     def fetch_page(self, url: str) -> tuple:
         """
         Fetch a webpage with retry logic
@@ -139,6 +204,11 @@ class SiteIndexer:
         Returns:
             tuple: (content, status_code) or (None, error_code)
         """
+        # If using browser mode, use Selenium
+        if self.use_browser:
+            return self._fetch_page_browser(url)
+
+        # Otherwise use requests with retry logic
         last_error = None
 
         for attempt in range(self.max_retries):
@@ -421,6 +491,12 @@ Examples:
 
   # Increase timeout for slow sites
   python site_indexer.py -t 60 -r 5 https://slow-site.com
+
+  # Use real browser for sites with advanced bot protection
+  python site_indexer.py -b -f urls.txt
+
+  # Combine browser mode with other options
+  python site_indexer.py -b -r 5 -d 2.0 -f urls.txt
         """
     )
 
@@ -459,6 +535,12 @@ Examples:
         type=float,
         default=0.5,
         help='Delay in seconds between requests to avoid rate limiting (default: 0.5)'
+    )
+
+    parser.add_argument(
+        '-b', '--use-browser',
+        action='store_true',
+        help='Use real Chrome browser (Selenium) for maximum bot bypass (slower but works on all sites)'
     )
 
     args = parser.parse_args()
@@ -500,7 +582,12 @@ Examples:
         sys.exit(1)
 
     # Index sites
-    indexer = SiteIndexer(timeout=args.timeout, max_retries=args.retries, delay=args.delay)
+    indexer = SiteIndexer(
+        timeout=args.timeout,
+        max_retries=args.retries,
+        delay=args.delay,
+        use_browser=args.use_browser
+    )
     data = indexer.index_sites(valid_urls)
 
     # Save results
