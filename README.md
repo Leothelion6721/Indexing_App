@@ -16,13 +16,18 @@ A Python application that indexes websites and generates structured JSON output 
   - Special handling for 403 errors with User-Agent rotation
   - Special handling for 429 errors with extended delays (rate limiting)
   - Skips retry on other client errors (404, etc.) to save time
-- **Advanced bot detection bypass**
-  - Automatically rotates through 5 different realistic User-Agent strings
-  - Random Referer headers (Google, Bing, DuckDuckGo) to simulate organic traffic
-  - Randomized request timing (100-500ms jitter) to avoid pattern detection
-  - Mimics real browser behavior with comprehensive headers
-  - Includes Chrome-specific headers (sec-ch-ua, Sec-Fetch-*, etc.)
-  - Significantly improves success rate for sites with sophisticated bot protection
+- **Advanced bot detection bypass - Maximum stealth**
+  - Rotates through **13 different User-Agent strings** (Chrome, Firefox, Safari, Edge, Mobile)
+  - Random Referer headers from 6 sources (Google, Bing, Yahoo, DuckDuckGo, Ecosia, or none)
+  - **Randomized header combinations** - Cache-Control (50% chance), DNT (33% chance)
+  - Variable Accept-Language headers (4 different combinations)
+  - Platform-specific headers for mobile vs desktop browsers
+  - **Humanized timing patterns**:
+    - Per-request jitter: 100-500ms random delay
+    - Per-site delay: ±30% randomization (e.g., 0.5s → 0.35-0.65s)
+  - Proper cookie handling and session persistence
+  - Chrome-specific headers (sec-ch-ua, Sec-Fetch-*) added conditionally
+  - Maximum diversity to avoid fingerprinting and pattern detection
 - **Rate limiting protection**
   - Configurable delay between requests (default: 0.5s)
   - Prevents triggering anti-bot measures
