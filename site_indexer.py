@@ -5,6 +5,7 @@ Site Indexer - Index websites and generate JSON output
 import json
 import sys
 import time
+import random
 from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin, urlparse
@@ -41,30 +42,48 @@ class SiteIndexer:
 
         self._update_headers()
 
-    def _update_headers(self, user_agent_index: int = 0):
+    def _update_headers(self, user_agent_index: int = 0, url: str = None):
         """
         Update session headers with more browser-like headers
 
         Args:
             user_agent_index: Index of user agent to use from the list
+            url: The URL being requested (for Referer header)
         """
         user_agent = self.user_agents[user_agent_index % len(self.user_agents)]
 
-        self.session.headers.update({
+        # Randomly choose a search engine referer to make it look organic
+        referers = [
+            'https://www.google.com/',
+            'https://www.bing.com/',
+            'https://duckduckgo.com/',
+            None  # Sometimes no referer
+        ]
+        referer = random.choice(referers)
+
+        headers = {
             'User-Agent': user_agent,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.9,en-GB;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
             'Cache-Control': 'max-age=0',
             'Sec-Fetch-Dest': 'document',
             'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-Site': 'cross-site' if referer else 'none',
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
             'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
             'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"'
-        })
+            'sec-ch-ua-platform': '"Windows"',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+        }
+
+        # Add referer if we have one
+        if referer:
+            headers['Referer'] = referer
+
+        self.session.headers.update(headers)
 
     def fetch_page(self, url: str) -> tuple:
         """
@@ -87,7 +106,10 @@ class SiteIndexer:
                     time.sleep(backoff_time)
 
                     # On retry, try a different User-Agent to bypass bot detection
-                    self._update_headers(attempt)
+                    self._update_headers(attempt, url)
+
+                # Add small random delay to avoid pattern detection (100-500ms)
+                time.sleep(random.uniform(0.1, 0.5))
 
                 response = self.session.get(url, timeout=self.timeout, allow_redirects=True)
                 response.raise_for_status()
@@ -255,7 +277,7 @@ class SiteIndexer:
             Dictionary with indexed data
         """
         # Reset headers to default for each new URL
-        self._update_headers(0)
+        self._update_headers(0, url)
 
         content, status = self.fetch_page(url)
 
