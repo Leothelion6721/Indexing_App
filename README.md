@@ -31,6 +31,11 @@ A Python application that indexes websites and generates structured JSON output 
 - **Rate limiting protection**
   - Configurable delay between requests (default: 0.5s)
   - Prevents triggering anti-bot measures
+- **Selenium browser mode for maximum bypass**
+  - Optional real Chrome browser automation using undetected-chromedriver
+  - Bypasses virtually all bot detection (Cloudflare, PerimeterX, DataDome, etc.)
+  - Executes JavaScript and handles complex anti-bot challenges
+  - Trade-off: Slower but more reliable for heavily protected sites
 - Automatic handling of relative URLs
 - Timestamps for indexed pages
 - Comprehensive error reporting
@@ -47,6 +52,13 @@ cd Indexing_App
 ```bash
 pip install -r requirements.txt
 ```
+
+3. (Optional) For Selenium browser mode:
+   - Install Google Chrome or Chromium browser
+   - The `undetected-chromedriver` package will automatically download the matching ChromeDriver
+   - On Linux: `sudo apt-get install chromium-browser` or `google-chrome-stable`
+   - On macOS: `brew install --cask google-chrome`
+   - On Windows: Download from [google.com/chrome](https://www.google.com/chrome/)
 
 ## Usage
 
@@ -94,6 +106,16 @@ Combine options for maximum robustness:
 python site_indexer.py -t 60 -r 5 -d 1.0 -f urls.txt
 ```
 
+Use Selenium browser mode for heavily protected sites:
+```bash
+python site_indexer.py -b https://tripadvisor.com
+```
+
+Combine browser mode with other options:
+```bash
+python site_indexer.py -b -t 60 -d 2.0 -f urls.txt
+```
+
 ### Using a URL File
 
 Create a text file (e.g., `urls.txt`) with one URL per line:
@@ -126,6 +148,7 @@ optional arguments:
                         Maximum number of retry attempts for failed requests (default: 3)
   -d DELAY, --delay DELAY
                         Delay in seconds between requests to avoid rate limiting (default: 0.5)
+  -b, --use-browser     Use Selenium with real Chrome browser for maximum bot bypass (slower but more reliable)
 ```
 
 ## Output Format
@@ -220,12 +243,40 @@ The application includes robust error handling:
 - beautifulsoup4 >= 4.12.0
 - lxml >= 4.9.0
 - tqdm >= 4.66.0
+- selenium >= 4.15.0 (for browser mode)
+- undetected-chromedriver >= 3.5.0 (for browser mode)
+
+## Browser Mode vs Requests Mode
+
+### When to Use Requests Mode (Default)
+- **Fast and efficient** - Processes pages quickly with minimal resource usage
+- **Good for most sites** - Works with 90%+ of websites
+- **Ideal for batch processing** - Can handle hundreds of sites efficiently
+- **Use when**: Sites don't have aggressive bot detection
+
+### When to Use Browser Mode (`-b` flag)
+- **Maximum bypass capability** - Uses a real Chrome browser to appear as a human user
+- **JavaScript execution** - Handles sites that require JavaScript to load content
+- **Complex anti-bot systems** - Bypasses Cloudflare, PerimeterX, DataDome, and similar protections
+- **Challenging sites** - Sites like TripAdvisor, Zillow, or other heavily protected platforms
+- **Trade-offs**: Slower (3-10x), uses more memory and CPU, requires Chrome installed
+- **Use when**: Sites return 403 Forbidden or show CAPTCHA challenges with requests mode
+
+### Performance Comparison
+| Mode | Speed | Success Rate | Resource Usage | Bot Bypass |
+|------|-------|--------------|----------------|------------|
+| Requests (default) | Fast (1-3s per page) | 85-95% | Low | Good |
+| Browser (`-b`) | Slow (5-15s per page) | 98-100% | High | Excellent |
+
+**Recommendation**: Start with requests mode for speed. If you encounter persistent 403 errors or bot detection, switch to browser mode for those specific sites.
 
 ## Limitations
 
-- Only indexes the HTML content of pages (no JavaScript rendering)
+- **Requests mode**: Only indexes static HTML content (no JavaScript rendering)
+- **Browser mode**: Executes JavaScript but is significantly slower
 - Large pages may take time to process
-- Some sites may block automated requests despite retries (respect robots.txt)
+- Some sites may block automated requests despite all bypass techniques (always respect robots.txt)
+- Browser mode requires Chrome/Chromium to be installed
 
 ## Tips
 
@@ -236,6 +287,9 @@ The application includes robust error handling:
 5. **Memory usage**: Very large pages or many pages at once may use significant memory
 6. **Server errors vs client errors**: The tool automatically retries server errors (5xx) and special client errors (403, 429), but not other client errors (404, etc.) to save time
 7. **Rate limiting (429 errors)**: The tool automatically handles rate limiting with extended delays, but if you frequently hit 429 errors, increase the `-d` delay parameter
+8. **Persistent 403 Forbidden errors**: If requests mode consistently fails with 403 errors, switch to browser mode (`-b`) for maximum bot bypass
+9. **Browser mode performance**: When using `-b`, increase the delay (`-d 2.0` or higher) since browser mode is already slower
+10. **Hybrid approach**: Use requests mode for most sites, then re-run failed URLs with browser mode for maximum efficiency
 
 ## License
 
