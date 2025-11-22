@@ -31,13 +31,33 @@ class SiteIndexer:
         self.delay = delay
         self.session = requests.Session()
 
-        # List of User-Agent strings to rotate through (helps avoid bot detection)
+        # Enable cookie handling
+        self.session.cookies.set_policy = True
+
+        # Expanded list of User-Agent strings including mobile
         self.user_agents = [
+            # Chrome Windows
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            # Chrome macOS
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            # Firefox Windows
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+            # Firefox macOS
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0',
+            # Safari macOS
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+            # Chrome Linux
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            # Edge Windows
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
+            # Mobile Chrome
+            'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36',
+            # Mobile Safari
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1'
         ]
 
         self._update_headers()
@@ -57,32 +77,56 @@ class SiteIndexer:
             'https://www.google.com/',
             'https://www.bing.com/',
             'https://duckduckgo.com/',
+            'https://search.yahoo.com/',
+            'https://www.ecosia.org/',
             None  # Sometimes no referer
         ]
         referer = random.choice(referers)
 
+        # Detect if User-Agent is mobile
+        is_mobile = 'Mobile' in user_agent or 'iPhone' in user_agent or 'Android' in user_agent
+
+        # Base headers that all browsers send
         headers = {
             'User-Agent': user_agent,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'en-US,en;q=0.9,en-GB;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
-            'Cache-Control': 'max-age=0',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'cross-site' if referer else 'none',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1',
-            'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'DNT': '1',
             'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
         }
+
+        # Add language with slight variation
+        languages = [
+            'en-US,en;q=0.9',
+            'en-US,en;q=0.9,en-GB;q=0.8',
+            'en-GB,en-US;q=0.9,en;q=0.8',
+            'en-US,en;q=0.9,es;q=0.8',
+        ]
+        headers['Accept-Language'] = random.choice(languages)
+
+        # Add cache control (randomly)
+        if random.choice([True, False]):
+            headers['Cache-Control'] = 'max-age=0'
 
         # Add referer if we have one
         if referer:
             headers['Referer'] = referer
 
+        # Add Chrome/Chromium-specific headers (for Chrome-based UAs)
+        if 'Chrome' in user_agent or 'Edg' in user_agent:
+            headers['Sec-Fetch-Dest'] = 'document'
+            headers['Sec-Fetch-Mode'] = 'navigate'
+            headers['Sec-Fetch-Site'] = 'cross-site' if referer else 'none'
+            headers['Sec-Fetch-User'] = '?1'
+            headers['sec-ch-ua'] = '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"'
+            headers['sec-ch-ua-mobile'] = '?1' if is_mobile else '?0'
+            headers['sec-ch-ua-platform'] = '"Android"' if is_mobile else '"Windows"'
+
+        # Add DNT header randomly (not all users have it)
+        if random.choice([True, False, False]):  # 33% chance
+            headers['DNT'] = '1'
+
+        self.session.headers.clear()
         self.session.headers.update(headers)
 
     def fetch_page(self, url: str) -> tuple:
@@ -324,8 +368,11 @@ class SiteIndexer:
                 pages.append(page_data)
 
             # Add delay between requests (except for last one)
+            # Add randomization to make timing more human-like
             if i < len(urls) - 1 and self.delay > 0:
-                time.sleep(self.delay)
+                # Randomize delay ±30% to avoid patterns
+                actual_delay = self.delay * random.uniform(0.7, 1.3)
+                time.sleep(actual_delay)
 
         return {"Pages": pages}
 
