@@ -111,6 +111,18 @@ class SiteIndexer:
                     else:
                         last_error = f"HTTP 403: Forbidden (bot detection)"
                         break
+                # Special handling for 429 Too Many Requests - rate limiting
+                elif response.status_code == 429:
+                    if attempt < self.max_retries - 1:
+                        # Add extra delay for rate limiting
+                        extra_delay = 3 * (2 ** attempt)  # 3s, 6s, 12s, etc.
+                        last_error = f"HTTP 429 Too Many Requests (attempt {attempt + 1}/{self.max_retries}), waiting {extra_delay}s"
+                        tqdm.write(f"Rate limited on {url}, waiting {extra_delay}s before retry...", file=sys.stderr)
+                        time.sleep(extra_delay)
+                        continue
+                    else:
+                        last_error = f"HTTP 429: Too Many Requests (rate limited)"
+                        break
                 # Retry on server errors (5xx)
                 elif response.status_code >= 500:
                     last_error = f"Server error {response.status_code} (attempt {attempt + 1}/{self.max_retries})"
