@@ -4,6 +4,7 @@ Site Indexer - Index websites and generate JSON output
 """
 import json
 import sys
+import time
 from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin, urlparse
@@ -15,14 +16,18 @@ from tqdm import tqdm
 class SiteIndexer:
     """Main class for indexing websites"""
 
-    def __init__(self, timeout: int = 30):
+    def __init__(self, timeout: int = 30, max_retries: int = 3, delay: float = 0.5):
         """
         Initialize the site indexer
 
         Args:
             timeout: Request timeout in seconds
+            max_retries: Maximum number of retry attempts for failed requests
+            delay: Delay in seconds between requests (to avoid rate limiting)
         """
         self.timeout = timeout
+        self.max_retries = max_retries
+        self.delay = delay
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -36,7 +41,7 @@ class SiteIndexer:
 
     def fetch_page(self, url: str) -> tuple:
         """
-        Fetch a webpage
+        Fetch a webpage with retry logic
 
         Args:
             url: The URL to fetch
@@ -44,13 +49,51 @@ class SiteIndexer:
         Returns:
             tuple: (content, status_code) or (None, error_code)
         """
-        try:
-            response = self.session.get(url, timeout=self.timeout, allow_redirects=True)
-            response.raise_for_status()
-            return response.text, response.status_code
-        except requests.RequestException as e:
-            tqdm.write(f"Error fetching {url}: {e}", file=sys.stderr)
-            return None, -1
+        last_error = None
+
+        for attempt in range(self.max_retries):
+            try:
+                # Add delay between requests (except for first attempt)
+                if attempt > 0:
+                    # Exponential backoff: 1s, 2s, 4s, etc.
+                    backoff_time = 2 ** attempt
+                    time.sleep(backoff_time)
+
+                response = self.session.get(url, timeout=self.timeout, allow_redirects=True)
+                response.raise_for_status()
+                return response.text, response.status_code
+
+            except requests.exceptions.Timeout as e:
+                last_error = f"Timeout (attempt {attempt + 1}/{self.max_retries})"
+                continue
+
+            except requests.exceptions.ConnectionError as e:
+                last_error = f"Connection error (attempt {attempt + 1}/{self.max_retries})"
+                continue
+
+            except requests.exceptions.HTTPError as e:
+                # Don't retry on client errors (4xx), only server errors (5xx)
+                if response.status_code >= 500:
+                    last_error = f"Server error {response.status_code} (attempt {attempt + 1}/{self.max_retries})"
+                    continue
+                else:
+                    # Client errors like 403, 404 - don't retry
+                    last_error = f"HTTP {response.status_code}: {e}"
+                    break
+
+            except requests.exceptions.TooManyRedirects as e:
+                last_error = f"Too many redirects"
+                break
+
+            except requests.exceptions.RequestException as e:
+                last_error = f"Request error: {e}"
+                continue
+
+        # All retries failed
+        if last_error:
+            tqdm.write(f"Failed to fetch {url}: {last_error}", file=sys.stderr)
+
+        return None, -1
 
     def extract_links(self, soup: BeautifulSoup, base_url: str) -> List[str]:
         """
@@ -163,7 +206,6 @@ class SiteIndexer:
         content, status = self.fetch_page(url)
 
         if content is None:
-            tqdm.write(f"Failed to fetch {url}", file=sys.stderr)
             return None
 
         soup = BeautifulSoup(content, 'html.parser')
@@ -200,10 +242,14 @@ class SiteIndexer:
         pages = []
 
         # Use tqdm for progress bar
-        for url in tqdm(urls, desc="Indexing sites", unit="site"):
+        for i, url in enumerate(tqdm(urls, desc="Indexing sites", unit="site")):
             page_data = self.index_url(url)
             if page_data:
                 pages.append(page_data)
+
+            # Add delay between requests (except for last one)
+            if i < len(urls) - 1 and self.delay > 0:
+                time.sleep(self.delay)
 
         return {"Pages": pages}
 
@@ -246,6 +292,12 @@ Examples:
 
   # Read URLs from a file (one URL per line)
   python site_indexer.py -f urls.txt
+
+  # Use more retries and longer delay for problematic sites
+  python site_indexer.py -r 5 -d 1.0 -f urls.txt
+
+  # Increase timeout for slow sites
+  python site_indexer.py -t 60 -r 5 https://slow-site.com
         """
     )
 
@@ -270,6 +322,20 @@ Examples:
         type=int,
         default=30,
         help='Request timeout in seconds (default: 30)'
+    )
+
+    parser.add_argument(
+        '-r', '--retries',
+        type=int,
+        default=3,
+        help='Maximum number of retry attempts for failed requests (default: 3)'
+    )
+
+    parser.add_argument(
+        '-d', '--delay',
+        type=float,
+        default=0.5,
+        help='Delay in seconds between requests to avoid rate limiting (default: 0.5)'
     )
 
     args = parser.parse_args()
@@ -311,7 +377,7 @@ Examples:
         sys.exit(1)
 
     # Index sites
-    indexer = SiteIndexer(timeout=args.timeout)
+    indexer = SiteIndexer(timeout=args.timeout, max_retries=args.retries, delay=args.delay)
     data = indexer.index_sites(valid_urls)
 
     # Save results
