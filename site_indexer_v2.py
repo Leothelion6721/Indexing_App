@@ -595,7 +595,8 @@ class DistributedCrawler:
                     self.indexed_pages.append(normalized_data)
 
                 # Discover new URLs from links (if depth allows)
-                if self.max_depth == 0 or item.depth < self.max_depth:
+                # Only follow links if max_depth > 0 and we haven't reached the limit
+                if self.max_depth > 0 and item.depth < self.max_depth:
                     for link in parsed_data['links'][:50]:  # Limit links per page
                         self.frontier.add_url(link, priority=50, depth=item.depth + 1, source="link")
 
