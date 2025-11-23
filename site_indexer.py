@@ -94,13 +94,19 @@ class SiteIndexer:
         self.driver = uc.Chrome(options=options, use_subprocess=True)
         self.driver.set_page_load_timeout(self.timeout)
 
-    def __del__(self):
-        """Cleanup browser on object destruction"""
-        if self.driver:
+    def cleanup(self):
+        """Explicitly cleanup browser resources"""
+        if self.use_browser and self.driver:
             try:
                 self.driver.quit()
-            except:
+                self.driver = None
+            except Exception:
+                # Silently ignore cleanup errors
                 pass
+
+    def __del__(self):
+        """Cleanup browser on object destruction"""
+        self.cleanup()
 
     def _update_headers(self, user_agent_index: int = 0, url: str = None):
         """
@@ -592,12 +598,17 @@ Examples:
         delay=args.delay,
         use_browser=args.use_browser
     )
-    data = indexer.index_sites(valid_urls)
 
-    # Save results
-    output_file = indexer.save_to_json(data, args.output)
+    try:
+        data = indexer.index_sites(valid_urls)
 
-    print(f"\nSuccessfully indexed {len(data['Pages'])} of {len(valid_urls)} site(s)")
+        # Save results
+        output_file = indexer.save_to_json(data, args.output)
+
+        print(f"\nSuccessfully indexed {len(data['Pages'])} of {len(valid_urls)} site(s)")
+    finally:
+        # Ensure browser is properly closed
+        indexer.cleanup()
 
 
 if __name__ == '__main__':
