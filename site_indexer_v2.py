@@ -802,9 +802,13 @@ Examples:
         print("\nError: No URLs provided", file=sys.stderr)
         sys.exit(1)
 
-    # Validate URLs
+    # Validate URLs and auto-add https:// if missing
     valid_urls = []
     for url in urls:
+        # Auto-add https:// if no scheme is present
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = f'https://{url}'
+
         parsed = urlparse(url)
         if not parsed.scheme or not parsed.netloc:
             print(f"Warning: Invalid URL skipped: {url}", file=sys.stderr)
