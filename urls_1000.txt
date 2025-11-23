@@ -1,7 +1,3 @@
-# Alternative 1000 Websites for Testing
-# Different collection from the first set
-
-# International E-commerce
 rakuten.co.jp
 jd.com
 tmall.com
@@ -38,8 +34,6 @@ avito.ru
 jumia.com
 konga.com
 takealot.com
-
-# Technology & Software
 atlassian.com
 jetbrains.com
 unity3d.com
@@ -82,8 +76,6 @@ notion.so
 clickup.com
 basecamp.com
 airtable.com
-
-# Cloud & Hosting
 oracle-cloud.com
 ibm-cloud.com
 rackspace.com
@@ -119,8 +111,6 @@ parse.com
 backendless.com
 kuzzle.io
 hasura.io
-
-# Developer Tools
 postman.com
 insomnia.rest
 soapui.org
@@ -154,8 +144,6 @@ factory-bot.dev
 faker.io
 chance.js
 casual.io
-
-# Data & Analytics
 tableau.com
 powerbi.microsoft.com
 looker.com
@@ -186,8 +174,6 @@ scout-apm.com
 skylight.io
 stackify.com
 retrace.com
-
-# Security & Privacy
 1password.com
 dashlane.com
 keeper.com
@@ -222,8 +208,6 @@ forgerock.com
 sailpoint.com
 saviynt.com
 oracle-iam.com
-
-# Content Management
 drupal.org
 joomla.org
 typo3.org
@@ -254,8 +238,6 @@ netlify-cms.org
 tina.io
 forestry.io
 dato-cms.com
-
-# Email Marketing
 mailchimp.com
 constantcontact.com
 sendinblue.com
@@ -286,8 +268,6 @@ mad-mimi.com
 pinpointe.com
 streamsend.com
 icontact.com
-
-# Project Management
 wrike.com
 smartsheet.com
 teamwork.com
@@ -318,8 +298,6 @@ tick.com
 freckle.com
 minterapp.com
 my-hours.com
-
-# Communication
 zoom.us
 webex.com
 gotomeeting.com
@@ -350,8 +328,6 @@ mediaelement.js
 videojs-http-streaming.com
 hls.js
 dash.js
-
-# Social Media Management
 hootsuite.com
 buffer.com
 sproutsocial.com
@@ -382,8 +358,6 @@ cision.com
 critical-mention.com
 buzzsumo.com
 socialbakers.com
-
-# E-learning Platforms
 teachable.com
 thinkific.com
 kajabi.com
@@ -414,8 +388,6 @@ cloudacademy.com
 linuxacademy.com
 acloudguru.com
 whizlabs.com
-
-# Payment Gateways
 braintree.com
 adyen.com
 worldpay.com
@@ -446,8 +418,6 @@ wealthsimple.com
 personalcapital.com
 empower-retirement.com
 fidelity-netbenefits.com
-
-# Stock Photography
 shutterstock.com
 istockphoto.com
 gettyimages.com
@@ -478,8 +448,6 @@ freeimages.com
 morguefile.com
 publicdomainpictures.net
 rgbstock.com
-
-# Video Stock
 pond5.com
 videohive.net
 videvo.net
@@ -505,8 +473,6 @@ xlr8r.com
 dareful.com
 cutestockfootage.com
 free-hd-footage.com
-
-# Music & Audio
 audiojungle.net
 premiumbeat.com
 epidemicsound.com
@@ -537,8 +503,6 @@ freesfx.co.uk
 sonniss.com
 99sounds.org
 bedroom-producers.com
-
-# Fonts & Typography
 google-fonts.com
 adobe-fonts.com
 fonts.com
@@ -569,8 +533,6 @@ prototypo.io
 metaflop.com
 axis-praxis.org
 fontlab.com
-
-# 3D & Graphics
 turbosquid.com
 cgtrader.com
 sketchfab.com
@@ -597,8 +559,6 @@ arroway-textures.com
 vray-materials.com
 maxwell-materials.com
 corona-materials.com
-
-# Architecture & CAD
 autodesk.com
 revit.com
 archicad.com
@@ -629,8 +589,6 @@ mudbox.com
 sculptris.com
 substance-painter.com
 mari.com
-
-# Engineering & Simulation
 ansys.com
 comsol.com
 matlab.com
@@ -661,8 +619,6 @@ marionette.com
 houdini-solaris.com
 gaffer.io
 katana.com
-
-# Game Development
 unity.com
 unreal.com
 godot.org
@@ -693,8 +649,6 @@ armory3d.org
 panda3d.org
 bevy.rs
 amethyst.rs
-
-# Video Editing
 davinciresolve.com
 finalcutpro.com
 premiere.com
@@ -725,8 +679,6 @@ subtitle-workshop.org
 jubler.org
 gaupol.org
 gnome-subtitles.org
-
-# Audio Production
 pro-tools.com
 logic-pro.com
 ableton.com
@@ -757,8 +709,6 @@ xfer-records.com
 reveal-sound.com
 valhalla-dsp.com
 fabfilter.com
-
-# Legal Services
 legalzoom.com
 rocketlawyer.com
 nolo.com
@@ -789,8 +739,6 @@ zycus.com
 gep.com
 rosslyn.com
 scanmarket.com
-
-# HR & Recruiting
 workday.com
 adp.com
 bamboohr.com
@@ -821,8 +769,6 @@ kronos.com
 deputy.com
 wheniwork.com
 humanity.com
-
-# Customer Support
 zendesk.com
 freshdesk.com
 helpscout.com
@@ -853,8 +799,6 @@ posteo.de
 runbox.com
 fastmail.com
 zoho-mail.com
-
-# Accounting & Finance
 quickbooks.com
 xero.com
 freshbooks.com
@@ -885,8 +829,6 @@ hyperion.com
 essbase.com
 tagetik.com
 longview.com
-
-# Infrastructure Monitoring
 nagios.org
 zabbix.com
 icinga.com
