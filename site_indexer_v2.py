@@ -203,9 +203,11 @@ class SitemapParser:
 class RobotsTxtChecker:
     """Check robots.txt compliance"""
 
-    def __init__(self, user_agent: str = "*"):
+    def __init__(self, user_agent: str = "*", timeout: int = 5):
         self.user_agent = user_agent
+        self.timeout = timeout
         self.parsers: Dict[str, urllib.robotparser.RobotFileParser] = {}
+        self.failed_domains: Set[str] = set()  # Domains where robots.txt failed
         self.lock = Lock()
 
     def can_fetch(self, url: str) -> bool:
@@ -214,14 +216,27 @@ class RobotsTxtChecker:
         base_url = f"{parsed.scheme}://{parsed.netloc}"
 
         with self.lock:
+            # If we already know this domain's robots.txt failed, allow crawling
+            if base_url in self.failed_domains:
+                return True
+
             if base_url not in self.parsers:
                 rp = urllib.robotparser.RobotFileParser()
                 rp.set_url(f"{base_url}/robots.txt")
                 try:
-                    rp.read()
+                    # Use requests with timeout instead of rp.read() which can hang
+                    import requests
+                    resp = requests.get(f"{base_url}/robots.txt", timeout=self.timeout)
+                    if resp.status_code == 200:
+                        rp.parse(resp.text.splitlines())
+                    else:
+                        # robots.txt not found or error, allow crawling
+                        self.failed_domains.add(base_url)
+                        return True
                 except:
-                    # If robots.txt can't be fetched, allow crawling
-                    pass
+                    # If robots.txt can't be fetched, allow crawling and remember this domain
+                    self.failed_domains.add(base_url)
+                    return True
                 self.parsers[base_url] = rp
 
             parser = self.parsers[base_url]
@@ -348,10 +363,18 @@ class Fetcher:
     def _fetch_browser(self, url: str) -> CrawlResult:
         """Fetch using Selenium browser"""
         try:
+            # Set page load timeout
+            self.driver.set_page_load_timeout(self.timeout)
+
+            # Try to load the page
             self.driver.get(url)
-            WebDriverWait(self.driver, self.timeout).until(
+
+            # Wait for body to load with explicit timeout
+            WebDriverWait(self.driver, min(self.timeout, 10)).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
+
+            # Small delay to ensure page is fully loaded
             time.sleep(random.uniform(1, 2))
 
             content = self.driver.page_source
@@ -363,6 +386,18 @@ class Fetcher:
             )
 
         except Exception as e:
+            # If page load times out or fails, try to get whatever content is available
+            try:
+                content = self.driver.page_source
+                if content and len(content) > 100:  # If we got some content
+                    return CrawlResult(
+                        url=url,
+                        status_code=200,
+                        content=content
+                    )
+            except:
+                pass
+
             return CrawlResult(
                 url=url,
                 status_code=0,
@@ -482,7 +517,8 @@ class DistributedCrawler:
         respect_robots: bool = True,
         use_sitemaps: bool = True,
         max_depth: int = 0,
-        deduplicate: bool = True
+        deduplicate: bool = True,
+        verbose: bool = False
     ):
         self.num_workers = num_workers
         self.timeout = timeout
@@ -491,11 +527,12 @@ class DistributedCrawler:
         self.use_sitemaps = use_sitemaps
         self.max_depth = max_depth
         self.deduplicate_enabled = deduplicate
+        self.verbose = verbose
 
         # Initialize components
         self.frontier = URLFrontier(politeness_delay=politeness_delay)
         self.sitemap_parser = SitemapParser(timeout=timeout)
-        self.robots_checker = RobotsTxtChecker() if respect_robots else None
+        self.robots_checker = RobotsTxtChecker(timeout=5) if respect_robots else None
         self.deduplicator = ContentDeduplicator() if deduplicate else None
 
         # Results
@@ -558,17 +595,27 @@ class DistributedCrawler:
                 # Check robots.txt
                 if self.respect_robots and self.robots_checker:
                     if not self.robots_checker.can_fetch(item.url):
+                        if self.verbose:
+                            print(f"[Worker {worker_id}] Blocked by robots.txt: {item.url}")
                         with self.lock:
                             self.stats['robots_blocked'] += 1
                         continue
 
                 # STAGE 1: FETCH
+                if self.verbose:
+                    print(f"[Worker {worker_id}] Fetching: {item.url}")
+
                 result = fetcher.fetch(item.url)
 
                 if result.error or not result.content:
+                    if self.verbose:
+                        print(f"[Worker {worker_id}] Failed: {item.url} - {result.error}")
                     with self.lock:
                         self.stats['failed'] += 1
                     continue
+
+                if self.verbose:
+                    print(f"[Worker {worker_id}] Success: {item.url}")
 
                 with self.lock:
                     self.stats['fetched'] += 1
@@ -706,6 +753,7 @@ Examples:
     parser.add_argument('--no-sitemaps', action='store_true', help='Disable sitemap discovery')
     parser.add_argument('--no-dedupe', action='store_true', help='Disable content deduplication')
     parser.add_argument('--max-depth', type=int, default=0, help='Maximum crawl depth (0 = only seeds, default: 0)')
+    parser.add_argument('--verbose', action='store_true', help='Show detailed progress for each URL')
 
     args = parser.parse_args()
 
@@ -752,7 +800,8 @@ Examples:
         respect_robots=not args.no_robots,
         use_sitemaps=not args.no_sitemaps,
         max_depth=args.max_depth,
-        deduplicate=not args.no_dedupe
+        deduplicate=not args.no_dedupe,
+        verbose=args.verbose
     )
 
     # Add seed URLs
