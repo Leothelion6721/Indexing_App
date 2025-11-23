@@ -273,6 +273,8 @@ class Fetcher:
     Fetch stage: Download web pages
     Supports both requests and Selenium modes
     """
+    # Class-level lock to prevent simultaneous browser initialization
+    _browser_init_lock = Lock()
 
     def __init__(self, timeout: int = 30, use_browser: bool = False):
         self.timeout = timeout
@@ -304,12 +306,16 @@ class Fetcher:
 
     def _init_browser(self):
         """Initialize Selenium browser"""
-        options = uc.ChromeOptions()
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        self.driver = uc.Chrome(options=options, use_subprocess=True)
-        self.driver.set_page_load_timeout(self.timeout)
+        # Use lock to prevent simultaneous initialization across workers
+        with Fetcher._browser_init_lock:
+            options = uc.ChromeOptions()
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-blink-features=AutomationControlled')
+            self.driver = uc.Chrome(options=options, use_subprocess=True)
+            self.driver.set_page_load_timeout(self.timeout)
+            # Small delay to ensure ChromeDriver files are fully released
+            time.sleep(0.5)
 
     def fetch(self, url: str) -> CrawlResult:
         """Fetch URL and return result"""
