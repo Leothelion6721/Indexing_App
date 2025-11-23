@@ -14,6 +14,7 @@ import requests
 import hashlib
 import json
 import sys
+import os
 import time
 import random
 import argparse
@@ -707,7 +708,7 @@ class DistributedCrawler:
         """Get indexed results"""
         return {"Pages": self.indexed_pages}
 
-    def save_to_json(self, filename: str = None):
+    def save_to_json(self, filename: str = None, append: bool = False):
         """Save results to JSON"""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -715,10 +716,32 @@ class DistributedCrawler:
 
         data = self.get_results()
 
+        # Append mode: merge with existing file
+        if append and os.path.exists(filename):
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:
+                    existing_data = json.load(f)
+
+                # Get existing URLs to avoid duplicates
+                existing_urls = {page['Url'] for page in existing_data.get('Pages', [])}
+
+                # Add only new pages (not already in file)
+                new_pages = [page for page in data['Pages'] if page['Url'] not in existing_urls]
+
+                # Merge: existing pages + new pages
+                merged_pages = existing_data.get('Pages', []) + new_pages
+                data = {"Pages": merged_pages}
+
+                print(f"Appending {len(new_pages)} new pages to existing {len(existing_data.get('Pages', []))} pages")
+
+            except Exception as e:
+                print(f"Warning: Could not read existing file, creating new: {e}")
+
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
         print(f"Results saved to: {filename}")
+        print(f"Total pages in file: {len(data['Pages'])}")
         return filename
 
 
@@ -754,6 +777,7 @@ Examples:
     parser.add_argument('--no-dedupe', action='store_true', help='Disable content deduplication')
     parser.add_argument('--max-depth', type=int, default=0, help='Maximum crawl depth (0 = only seeds, default: 0)')
     parser.add_argument('--verbose', action='store_true', help='Show detailed progress for each URL')
+    parser.add_argument('--append', action='store_true', help='Append results to existing JSON file instead of creating new one')
 
     args = parser.parse_args()
 
@@ -811,7 +835,7 @@ Examples:
     crawler.crawl()
 
     # Save results
-    crawler.save_to_json(args.output)
+    crawler.save_to_json(args.output, append=args.append)
 
 
 if __name__ == '__main__':
